@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion } from 'motion/react'
 import { toast } from 'sonner'
-import { loadPicturesData } from '@/lib/data-loader'
+import { loadPicturesData, loadPageListPaginated } from '@/lib/data-loader'
 import { RandomLayout } from './components/random-layout'
 import UploadDialog from './components/upload-dialog'
 import { pushPictures } from './services/push-pictures'
@@ -27,28 +27,58 @@ export default function Page() {
 	const [isSaving, setIsSaving] = useState(false)
 	const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false)
 	const [imageItems, setImageItems] = useState<Map<string, ImageItem>>(new Map())
+	const [isLoading, setIsLoading] = useState(false)
+	const [hasMore, setHasMore] = useState(true)
+	const [currentPage, setCurrentPage] = useState(1)
 	const keyInputRef = useRef<HTMLInputElement>(null)
 	const router = useRouter()
 
 	const { isAuth, setPrivateKey } = useAuthStore()
 	const { siteContent } = useConfigStore()
 	const hideEditButton = siteContent.hideEditButton ?? false
+	const pageSize = 20 // 每页加载20个项目
 
 	// 初始化加载数据
 	useEffect(() => {
 		const fetchData = async () => {
+			setIsLoading(true)
 			try {
-				const data = await loadPicturesData()
+				// 对于初始加载，我们加载第一页数据
+				const { data, total } = await loadPageListPaginated<Picture>('pictures', 1, pageSize)
 				setPictures(data)
 				setOriginalPictures(data)
+				setHasMore(total > data.length)
+				setCurrentPage(1)
 			} catch (error) {
 				console.error('Failed to load pictures data:', error)
 				toast.error('加载图片数据失败')
+			} finally {
+				setIsLoading(false)
 			}
 		}
 		
 		fetchData()
 	}, [])
+
+	// 加载更多数据
+	const loadMore = async () => {
+		if (isLoading || !hasMore) return
+		
+		setIsLoading(true)
+		try {
+			const nextPage = currentPage + 1
+			const { data, total } = await loadPageListPaginated<Picture>('pictures', nextPage, pageSize)
+			setPictures(prev => [...prev, ...data])
+			setOriginalPictures(prev => [...prev, ...data])
+			setHasMore(total > pictures.length + data.length)
+			setCurrentPage(nextPage)
+		} catch (error) {
+			console.error('Failed to load more pictures data:', error)
+			toast.error('加载更多图片数据失败')
+		} finally {
+			setIsLoading(false)
+		}
+	}
 
 	const handleUploadSubmit = ({ images, description }: { images: ImageItem[]; description: string }) => {
 		const now = new Date().toISOString()
@@ -248,6 +278,21 @@ export default function Page() {
 			/>
 
 			<RandomLayout pictures={pictures} isEditMode={isEditMode} onDeleteSingle={handleDeleteSingleImage} onDeleteGroup={handleDeleteGroup} />
+
+			{/* 加载更多按钮 */}
+			{hasMore && !isEditMode && (
+				<div className="flex justify-center my-8">
+					<motion.button
+						whileHover={{ scale: 1.05 }}
+						whileTap={{ scale: 0.95 }}
+						onClick={loadMore}
+						disabled={isLoading}
+						className="bg-card rounded-xl border px-6 py-2 text-sm backdrop-blur-sm transition-colors hover:bg-white/80"
+					>
+						{isLoading ? '加载中...' : '加载更多'}
+					</motion.button>
+				</div>
+			)}
 
 			{pictures.length === 0 && (
 				<div className='text-secondary flex min-h-screen items-center justify-center text-center text-sm'>

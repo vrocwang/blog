@@ -8,7 +8,7 @@ import CreateDialog from './components/create-dialog'
 import { pushShares } from './services/push-shares'
 import { useAuthStore } from '@/hooks/use-auth'
 import { useConfigStore } from '@/app/(home)/stores/config-store'
-import { loadShareData } from '@/lib/data-loader'
+import { loadShareData, loadPageListPaginated } from '@/lib/data-loader'
 import type { Share } from './components/share-card'
 import type { LogoItem } from './components/logo-upload-dialog'
 
@@ -20,27 +20,57 @@ export default function Page() {
 	const [editingShare, setEditingShare] = useState<Share | null>(null)
 	const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
 	const [logoItems, setLogoItems] = useState<Map<string, LogoItem>>(new Map())
+	const [isLoading, setIsLoading] = useState(false)
+	const [hasMore, setHasMore] = useState(true)
+	const [currentPage, setCurrentPage] = useState(1)
 	const keyInputRef = useRef<HTMLInputElement>(null)
 
 	const { isAuth, setPrivateKey } = useAuthStore()
 	const { siteContent } = useConfigStore()
 	const hideEditButton = siteContent.hideEditButton ?? false
+	const pageSize = 20 // 每页加载20个项目
 
 	// 初始化加载数据
 	useEffect(() => {
 		const fetchData = async () => {
+			setIsLoading(true)
 			try {
-				const data = await loadShareData()
+				// 对于初始加载，我们加载第一页数据
+				const { data, total } = await loadPageListPaginated<Share>('share', 1, pageSize)
 				setShares(data)
 				setOriginalShares(data)
+				setHasMore(total > data.length)
+				setCurrentPage(1)
 			} catch (error) {
 				console.error('Failed to load share data:', error)
 				toast.error('加载分享数据失败')
+			} finally {
+				setIsLoading(false)
 			}
 		}
 		
 		fetchData()
 	}, [])
+
+	// 加载更多数据
+	const loadMore = async () => {
+		if (isLoading || !hasMore) return
+		
+		setIsLoading(true)
+		try {
+			const nextPage = currentPage + 1
+			const { data, total } = await loadPageListPaginated<Share>('share', nextPage, pageSize)
+			setShares(prev => [...prev, ...data])
+			setOriginalShares(prev => [...prev, ...data])
+			setHasMore(total > shares.length + data.length)
+			setCurrentPage(nextPage)
+		} catch (error) {
+			console.error('Failed to load more share data:', error)
+			toast.error('加载更多分享数据失败')
+		} finally {
+			setIsLoading(false)
+		}
+	}
 
 	const handleUpdate = (updatedShare: Share, oldShare: Share, logoItem?: LogoItem) => {
 		setShares(prev => prev.map(s => (s.url === oldShare.url ? updatedShare : s)))
@@ -150,7 +180,27 @@ export default function Page() {
 				}}
 			/>
 
-			<GridView shares={shares} isEditMode={isEditMode} onUpdate={handleUpdate} onDelete={handleDelete} />
+			<GridView 
+				shares={shares} 
+				isEditMode={isEditMode} 
+				onUpdate={handleUpdate} 
+				onDelete={handleDelete} 
+			/>
+
+			{/* 加载更多按钮 */}
+			{hasMore && !isEditMode && (
+				<div className="flex justify-center my-8">
+					<motion.button
+						whileHover={{ scale: 1.05 }}
+						whileTap={{ scale: 0.95 }}
+						onClick={loadMore}
+						disabled={isLoading}
+						className="bg-card rounded-xl border px-6 py-2 text-sm backdrop-blur-sm transition-colors hover:bg-white/80"
+					>
+						{isLoading ? '加载中...' : '加载更多'}
+					</motion.button>
+				</div>
+			)}
 
 			<motion.div initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} className='absolute top-4 right-6 flex gap-3 max-sm:hidden'>
 				{isEditMode ? (
