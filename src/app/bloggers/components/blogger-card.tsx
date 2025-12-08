@@ -51,6 +51,14 @@ export function BloggerCard({ blogger, isEditMode = false, onUpdate, onDelete }:
 			initial={{ opacity: 0, scale: 0.6 }}
 			{...(maxSM ? { animate: { opacity: 1, scale: 1 } } : { whileInView: { opacity: 1, scale: 1 } })}
 			className='card relative block overflow-hidden'>
+			{!isEditMode && (
+				<a 
+					href={localBlogger.url} 
+					target="_blank" 
+					rel="noopener noreferrer"
+					className="absolute inset-0 z-10"
+				/>
+			)}
 			{isEditMode && (
 				<div className='absolute top-3 right-3 z-10 flex gap-2'>
 					{isEditing ? (
