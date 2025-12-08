@@ -8,12 +8,12 @@ import CreateDialog from './components/create-dialog'
 import { pushBloggers } from './services/push-bloggers'
 import { useAuthStore } from '@/hooks/use-auth'
 import { useConfigStore } from '@/app/(home)/stores/config-store'
-import initialList from './list.json'
+import { loadBloggersData } from '@/lib/data-loader'
 import type { AvatarItem } from './components/avatar-upload-dialog'
 
 export default function Page() {
-	const [bloggers, setBloggers] = useState<Blogger[]>(initialList as Blogger[])
-	const [originalBloggers, setOriginalBloggers] = useState<Blogger[]>(initialList as Blogger[])
+	const [bloggers, setBloggers] = useState<Blogger[]>([])
+	const [originalBloggers, setOriginalBloggers] = useState<Blogger[]>([])
 	const [isEditMode, setIsEditMode] = useState(false)
 	const [isSaving, setIsSaving] = useState(false)
 	const [editingBlogger, setEditingBlogger] = useState<Blogger | null>(null)
@@ -24,6 +24,22 @@ export default function Page() {
 	const { isAuth, setPrivateKey } = useAuthStore()
 	const { siteContent } = useConfigStore()
 	const hideEditButton = siteContent.hideEditButton ?? false
+
+	// 初始化加载数据
+	useEffect(() => {
+		const fetchData = async () => {
+			try {
+				const data = await loadBloggersData()
+				setBloggers(data)
+				setOriginalBloggers(data)
+			} catch (error) {
+				console.error('Failed to load bloggers data:', error)
+				toast.error('加载博主数据失败')
+			}
+		}
+		
+		fetchData()
+	}, [])
 
 	const handleUpdate = (updatedBlogger: Blogger, oldBlogger: Blogger, avatarItem?: AvatarItem) => {
 		setBloggers(prev => prev.map(b => (b.url === oldBlogger.url ? updatedBlogger : b)))

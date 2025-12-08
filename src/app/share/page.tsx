@@ -8,13 +8,13 @@ import CreateDialog from './components/create-dialog'
 import { pushShares } from './services/push-shares'
 import { useAuthStore } from '@/hooks/use-auth'
 import { useConfigStore } from '@/app/(home)/stores/config-store'
-import initialList from './list.json'
+import { loadShareData } from '@/lib/data-loader'
 import type { Share } from './components/share-card'
 import type { LogoItem } from './components/logo-upload-dialog'
 
 export default function Page() {
-	const [shares, setShares] = useState<Share[]>(initialList as Share[])
-	const [originalShares, setOriginalShares] = useState<Share[]>(initialList as Share[])
+	const [shares, setShares] = useState<Share[]>([])
+	const [originalShares, setOriginalShares] = useState<Share[]>([])
 	const [isEditMode, setIsEditMode] = useState(false)
 	const [isSaving, setIsSaving] = useState(false)
 	const [editingShare, setEditingShare] = useState<Share | null>(null)
@@ -25,6 +25,22 @@ export default function Page() {
 	const { isAuth, setPrivateKey } = useAuthStore()
 	const { siteContent } = useConfigStore()
 	const hideEditButton = siteContent.hideEditButton ?? false
+
+	// 初始化加载数据
+	useEffect(() => {
+		const fetchData = async () => {
+			try {
+				const data = await loadShareData()
+				setShares(data)
+				setOriginalShares(data)
+			} catch (error) {
+				console.error('Failed to load share data:', error)
+				toast.error('加载分享数据失败')
+			}
+		}
+		
+		fetchData()
+	}, [])
 
 	const handleUpdate = (updatedShare: Share, oldShare: Share, logoItem?: LogoItem) => {
 		setShares(prev => prev.map(s => (s.url === oldShare.url ? updatedShare : s)))

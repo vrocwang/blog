@@ -8,12 +8,12 @@ import CreateDialog from './components/create-dialog'
 import { pushProjects } from './services/push-projects'
 import { useAuthStore } from '@/hooks/use-auth'
 import { useConfigStore } from '@/app/(home)/stores/config-store'
-import initialList from './list.json'
+import { loadProjectsData } from '@/lib/data-loader'
 import type { ImageItem } from './components/image-upload-dialog'
 
 export default function Page() {
-	const [projects, setProjects] = useState<Project[]>(initialList as Project[])
-	const [originalProjects, setOriginalProjects] = useState<Project[]>(initialList as Project[])
+	const [projects, setProjects] = useState<Project[]>([])
+	const [originalProjects, setOriginalProjects] = useState<Project[]>([])
 	const [isEditMode, setIsEditMode] = useState(false)
 	const [isSaving, setIsSaving] = useState(false)
 	const [editingProject, setEditingProject] = useState<Project | null>(null)
@@ -24,6 +24,22 @@ export default function Page() {
 	const { isAuth, setPrivateKey } = useAuthStore()
 	const { siteContent } = useConfigStore()
 	const hideEditButton = siteContent.hideEditButton ?? false
+
+	// 初始化加载数据
+	useEffect(() => {
+		const fetchData = async () => {
+			try {
+				const data = await loadProjectsData()
+				setProjects(data)
+				setOriginalProjects(data)
+			} catch (error) {
+				console.error('Failed to load projects data:', error)
+				toast.error('加载项目数据失败')
+			}
+		}
+		
+		fetchData()
+	}, [])
 
 	const handleUpdate = (updatedProject: Project, oldProject: Project, imageItem?: ImageItem) => {
 		setProjects(prev => prev.map(p => (p.url === oldProject.url ? updatedProject : p)))

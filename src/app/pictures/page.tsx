@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion } from 'motion/react'
 import { toast } from 'sonner'
-import initialList from './list.json'
+import { loadPicturesData } from '@/lib/data-loader'
 import { RandomLayout } from './components/random-layout'
 import UploadDialog from './components/upload-dialog'
 import { pushPictures } from './services/push-pictures'
@@ -21,8 +21,8 @@ export interface Picture {
 }
 
 export default function Page() {
-	const [pictures, setPictures] = useState<Picture[]>(initialList as Picture[])
-	const [originalPictures, setOriginalPictures] = useState<Picture[]>(initialList as Picture[])
+	const [pictures, setPictures] = useState<Picture[]>([])
+	const [originalPictures, setOriginalPictures] = useState<Picture[]>([])
 	const [isEditMode, setIsEditMode] = useState(false)
 	const [isSaving, setIsSaving] = useState(false)
 	const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false)
@@ -33,6 +33,22 @@ export default function Page() {
 	const { isAuth, setPrivateKey } = useAuthStore()
 	const { siteContent } = useConfigStore()
 	const hideEditButton = siteContent.hideEditButton ?? false
+
+	// 初始化加载数据
+	useEffect(() => {
+		const fetchData = async () => {
+			try {
+				const data = await loadPicturesData()
+				setPictures(data)
+				setOriginalPictures(data)
+			} catch (error) {
+				console.error('Failed to load pictures data:', error)
+				toast.error('加载图片数据失败')
+			}
+		}
+		
+		fetchData()
+	}, [])
 
 	const handleUploadSubmit = ({ images, description }: { images: ImageItem[]; description: string }) => {
 		const now = new Date().toISOString()

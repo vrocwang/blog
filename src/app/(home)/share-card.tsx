@@ -5,7 +5,7 @@ import Card from '@/components/card'
 import { useCenterStore } from '@/hooks/use-center'
 import { useConfigStore } from './stores/config-store'
 import { CARD_SPACING } from '@/consts'
-import shareList from '@/app/share/list.json'
+import { loadShareData } from '@/lib/data-loader'
 import Link from 'next/link'
 import { HomeDraggableLayer } from './home-draggable-layer'
 
@@ -27,8 +27,17 @@ export default function ShareCard() {
 	const socialButtonsStyles = cardStyles.socialButtons
 
 	useEffect(() => {
-		const randomIndex = Math.floor(Math.random() * shareList.length)
-		setRandomItem(shareList[randomIndex])
+		const fetchData = async () => {
+			try {
+				const shareList = await loadShareData()
+				const randomIndex = Math.floor(Math.random() * shareList.length)
+				setRandomItem(shareList[randomIndex])
+			} catch (error) {
+				console.error('Failed to load share data:', error)
+			}
+		}
+		
+		fetchData()
 	}, [])
 
 	if (!randomItem) {

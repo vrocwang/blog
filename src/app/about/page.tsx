@@ -7,13 +7,14 @@ import { useMarkdownRender } from '@/hooks/use-markdown-render'
 import { pushAbout, type AboutData } from './services/push-about'
 import { useAuthStore } from '@/hooks/use-auth'
 import { useConfigStore } from '@/app/(home)/stores/config-store'
+import { loadAboutData } from '@/lib/data-loader'
 import LikeButton from '@/components/like-button'
 import GithubSVG from '@/svgs/github.svg'
-import initialData from './list.json'
+import type { AboutData as AboutDataType } from './services/push-about'
 
 export default function Page() {
-	const [data, setData] = useState<AboutData>(initialData as AboutData)
-	const [originalData, setOriginalData] = useState<AboutData>(initialData as AboutData)
+	const [data, setData] = useState<AboutDataType | null>(null)
+	const [originalData, setOriginalData] = useState<AboutDataType | null>(null)
 	const [isEditMode, setIsEditMode] = useState(false)
 	const [isSaving, setIsSaving] = useState(false)
 	const [isPreviewMode, setIsPreviewMode] = useState(false)
@@ -21,8 +22,24 @@ export default function Page() {
 
 	const { isAuth, setPrivateKey } = useAuthStore()
 	const { siteContent } = useConfigStore()
-	const { content, loading } = useMarkdownRender(data.content)
+	const { content, loading } = useMarkdownRender(data?.content || '')
 	const hideEditButton = siteContent.hideEditButton ?? false
+
+	// 初始化加载数据
+	useEffect(() => {
+		const fetchData = async () => {
+			try {
+				const aboutData = await loadAboutData()
+				setData(aboutData)
+				setOriginalData(aboutData)
+			} catch (error) {
+				console.error('Failed to load about data:', error)
+				toast.error('加载关于页面数据失败')
+			}
+		}
+		
+		fetchData()
+	}, [])
 
 	const handleChoosePrivateKey = async (file: File) => {
 		try {
@@ -49,6 +66,8 @@ export default function Page() {
 	}
 
 	const handleSave = async () => {
+		if (!data) return
+		
 		setIsSaving(true)
 
 		try {
@@ -88,6 +107,17 @@ export default function Page() {
 			window.removeEventListener('keydown', handleKeyDown)
 		}
 	}, [isEditMode])
+
+	// 数据加载中显示
+	if (!data) {
+		return (
+			<div className='flex flex-col items-center justify-center px-6 pt-32 pb-12 max-sm:px-0'>
+				<div className='w-full max-w-[800px]'>
+					<div className='text-secondary text-center'>加载中...</div>
+				</div>
+			</div>
+		)
+	}
 
 	return (
 		<>
